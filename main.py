@@ -1,32 +1,3 @@
-"""
-=============================================================
-  MOSES BOT — Full AI Companion v2.0
-  Features: Long-term memory, voice mode, vision, multimodal,
-  link understanding, coding assistant, retry/fallback, and more.
-=============================================================
-
-DEPENDENCIES — install before running:
-  pip install pyTelegramBotAPI yt-dlp groq openai requests
-  pip install pillow speechrecognition pydub
-  pip install curl-cffi          # fixes TikTok
-  pip install yt-dlp --upgrade   # always latest
-
-FFMPEG — required for audio/video processing:
-  Ubuntu/Debian:  sudo apt install ffmpeg
-  Windows:        https://ffmpeg.org/download.html  (add to PATH)
-  Mac:            brew install ffmpeg
-
-ENVIRONMENT VARIABLES (or hardcode below for testing):
-  BOT_TOKEN        — Telegram bot token
-  GROQ_API_KEY     — Free at https://console.groq.com
-  OPENAI_API_KEY   — Optional; used for TTS and vision fallback
-  ELEVENLABS_KEY   — Optional; for premium ElevenLabs TTS
-
-OPTIONAL: ElevenLabs voice IDs per persona can be configured
-in the PERSONA_VOICE_IDS dict below.
-=============================================================
-"""
-
 import os
 import json
 import time
