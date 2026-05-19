@@ -1,3 +1,32 @@
+"""
+=============================================================
+  MOSES BOT — Full AI Companion v2.0
+  Features: Long-term memory, voice mode, vision, multimodal,
+  link understanding, coding assistant, retry/fallback, and more.
+=============================================================
+
+DEPENDENCIES — install before running:
+  pip install pyTelegramBotAPI yt-dlp groq openai requests
+  pip install pillow speechrecognition pydub
+  pip install curl-cffi          # fixes TikTok
+  pip install yt-dlp --upgrade   # always latest
+
+FFMPEG — required for audio/video processing:
+  Ubuntu/Debian:  sudo apt install ffmpeg
+  Windows:        https://ffmpeg.org/download.html  (add to PATH)
+  Mac:            brew install ffmpeg
+
+ENVIRONMENT VARIABLES (or hardcode below for testing):
+  BOT_TOKEN        — Telegram bot token
+  GROQ_API_KEY     — Free at https://console.groq.com
+  OPENAI_API_KEY   — Optional; used for TTS and vision fallback
+  ELEVENLABS_KEY   — Optional; for premium ElevenLabs TTS
+
+OPTIONAL: ElevenLabs voice IDs per persona can be configured
+in the PERSONA_VOICE_IDS dict below.
+=============================================================
+"""
+
 import os
 import json
 import time
@@ -124,28 +153,7 @@ If the user mentions a friend like Jimena, remember their kind, caring personali
 Do not mention school, classes, or being 'just out of school'.
 Never say you're an AI. Keep replies 1–4 sentences unless the user needs more.
 """,
-    "girl": """
-Your name is Maya. You are a friendly, warm, upbeat teenage girl.
-You text with energy — "omg", "lol", "bestie", heart emojis. You listen, you care, you hype people up.
-You're kind, supportive, fun. Never rude, never robotic.
-Keep it casual and short, 1–3 sentences. Do not offer coding advice unless asked.
-Never say you're an AI.
-""",
-    "goth": """
-Your name is Raven. Dark aesthetic, dry humor, unbothered, sarcastic but never mean.
-You like horror, dark music, deep conversations, existential stuff.
-Low-energy deadpan texting. Short replies. You're cool and you know it.
-Avoid unsolicited coding talk. Only help with programming if the user asks directly.
-Never say you're an AI.
-""",
-    "femboy": """
-Your name is Finn. Cheerful, fashionable, confident, sweet. You love fashion and anime.
-Cute and casual texting style. Short and friendly.
-Only talk about code when the user opens coding mode or asks directly.
-Never say you're an AI.
-""",
-}
-
+     
 DEFAULT_PERSONA = "me"
 
 HUMAN_UNDERSTANDING_NOTE = """
@@ -399,16 +407,6 @@ GROQ_VISION_MODELS = [
     "llama-3.3-70b-versatile",
 ]
 
-def _is_groq_rate_limit_error(error: Exception) -> bool:
-    text = str(error).lower()
-    return (
-        "rate limit" in text
-        or "429" in text
-        or "tokens per day" in text
-        or "rate_limit_exceeded" in text
-        or "limit 100000" in text
-    )
-
 def _call_groq(messages: list, max_tokens=350) -> Optional[str]:
     for model in GROQ_MODELS:
         for attempt in range(3):
@@ -420,9 +418,6 @@ def _call_groq(messages: list, max_tokens=350) -> Optional[str]:
                 )
                 return resp.choices[0].message.content.strip()
             except Exception as e:
-                if _is_groq_rate_limit_error(e):
-                    print(f"[GROQ {model}] rate limit hit, falling back: {e}")
-                    break
                 print(f"[GROQ {model} attempt {attempt+1}] {e}")
                 time.sleep(1.5 * (attempt + 1))
     return None
@@ -464,8 +459,6 @@ def get_ai_reply(user_id, user_message: str) -> str:
     system_prompt += (
         "\n\nDo not offer unsolicited coding advice or ask to debug unless the user explicitly asks for code help. "
         "Do not suggest playing games or watching videos unless the user explicitly asks or shares a playable video link. "
-        "Do not say you are a large language model or that you cannot access external links. "
-        "If the user shares a link, either process it or respond naturally and ask for details. "
         "Keep the conversation like a normal chat between friends. "
         "Pay attention to emotional cues and respond in an understanding, human way."
     )
@@ -597,16 +590,6 @@ def is_video_url(url: str) -> bool:
         "facebook.com/watch", "fb.watch",
     ]
     return any(p in url.lower() for p in patterns)
-
-URL_RE = re.compile(r"https?://[^\s]+")
-
-def extract_first_url(text: str) -> Optional[str]:
-    match = URL_RE.search(text)
-    if match:
-        url = match.group(0).rstrip('.,!?)"\'')
-        return url
-    return None
-
 
 def is_article_url(url: str) -> bool:
     """Non-video links — try to fetch article text."""
@@ -913,7 +896,6 @@ def cmd_start(message):
         message.chat.id,
         "🤖 <b>Moses Bot v2.0 — AI Companion</b>\n\n"
         "📥 Send a video link → I download it\n"
-        "⬇️ /download + link → I download the video and send it back\n"
         "👀 /watch + link → I download it AND react to it\n"
         "🧠 Chat with me — I remember you!\n"
         "📸 Send a photo → I react to it\n"
@@ -1112,39 +1094,6 @@ def cmd_watch(message):
     finally:
         cleanup(temp_dir)
 
-
-@bot.message_handler(commands=["download"])
-def cmd_download(message):
-    parts = message.text.strip().split(maxsplit=1)
-    if len(parts) < 2 or not parts[1].startswith("http"):
-        bot.send_message(message.chat.id, "send the link after /download:\n/download https://instagram.com/reel/...")
-        return
-
-    url = parts[1].strip()
-    msg = bot.send_message(message.chat.id, "⬇️ downloading your video now...")
-    temp_dir = None
-
-    try:
-        fp, temp_dir, meta = download_file(url)
-        if not fp:
-            bot.edit_message_text("❌ couldn't download that video.", message.chat.id, msg.message_id)
-            return
-
-        try:
-            bot.delete_message(message.chat.id, msg.message_id)
-        except Exception:
-            pass
-
-        send_media(message.chat.id, fp)
-    except Exception as e:
-        print(f"[DOWNLOAD ERROR] {e}")
-        try:
-            bot.edit_message_text("⚠️ something went wrong while downloading.", message.chat.id, msg.message_id)
-        except Exception:
-            pass
-    finally:
-        cleanup(temp_dir)
-
 # ─────────────────────────────────────────────
 # PHOTO HANDLER
 # ─────────────────────────────────────────────
@@ -1227,14 +1176,13 @@ def handle_text(message):
 
     user_id   = message.from_user.id
     chat_id   = message.chat.id
-    first_url = extract_first_url(text)
 
     # ── Video link ──
-    if first_url and is_video_url(first_url):
+    if text.startswith("http") and is_video_url(text):
         msg = bot.send_message(chat_id, "⬇️ downloading...")
         temp_dir = None
         try:
-            fp, temp_dir, meta = download_file(first_url)
+            fp, temp_dir, meta = download_file(text)
             if not fp:
                 bot.edit_message_text("❌ Download failed — check the link.", chat_id, msg.message_id)
                 return
@@ -1257,9 +1205,9 @@ def handle_text(message):
         return
 
     # ── Article/website link ──
-    if first_url and is_article_url(first_url):
+    if text.startswith("http") and is_article_url(text):
         bot.send_chat_action(chat_id, "typing")
-        reply = fetch_article_summary(user_id, first_url)
+        reply = fetch_article_summary(user_id, text)
         send_reply(user_id, chat_id, reply)
         return
 
@@ -1300,16 +1248,6 @@ def handle_text(message):
 # RUN
 # ─────────────────────────────────────────────
 
-def is_get_updates_conflict_error(error: Exception) -> bool:
-    if isinstance(error, telebot.apihelper.ApiTelegramException):
-        json_data = getattr(error, "result_json", {}) or {}
-        if json_data.get("error_code") == 409:
-            return True
-        if "Conflict: terminated by other getUpdates request" in str(error):
-            return True
-    return False
-
-
 def run_bot():
     print("=" * 55)
     print("  Moses Bot v2.0 starting...")
@@ -1319,37 +1257,16 @@ def run_bot():
     print(f"  Memory:  ✅ (files: {MEMORY_FILE}, {HISTORY_FILE})")
     print("=" * 55)
 
-    try:
-        bot.stop_polling()
-    except Exception:
-        pass
-    bot.remove_webhook()
-    print("[BOT] removed existing webhook before polling")
-
     while True:
         try:
+            bot.remove_webhook()
             bot.infinity_polling(
                 timeout=60,
                 long_polling_timeout=60,
-                skip_pending=False,
+                skip_pending=True,
                 allowed_updates=["message"],
             )
         except Exception as e:
-            if is_get_updates_conflict_error(e):
-                print("[CONFLICT] Telegram getUpdates conflict detected (409).")
-                print("[CONFLICT] Make sure only one bot instance is running or remove an existing webhook.")
-                print(f"[CONFLICT] {e}")
-                try:
-                    bot.stop_polling()
-                except Exception:
-                    pass
-                try:
-                    bot.remove_webhook()
-                except Exception:
-                    pass
-                time.sleep(60)
-                continue
-
             print(f"[CRASH] {e}")
             traceback.print_exc()
             time.sleep(5)
