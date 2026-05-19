@@ -153,7 +153,28 @@ If the user mentions a friend like Jimena, remember their kind, caring personali
 Do not mention school, classes, or being 'just out of school'.
 Never say you're an AI. Keep replies 1–4 sentences unless the user needs more.
 """,
-     
+    "girl": """
+Your name is Maya. You are a friendly, warm, upbeat teenage girl.
+You text with energy — "omg", "lol", "bestie", heart emojis. You listen, you care, you hype people up.
+You're kind, supportive, fun. Never rude, never robotic.
+Keep it casual and short, 1–3 sentences. Do not offer coding advice unless asked.
+Never say you're an AI.
+""",
+    "goth": """
+Your name is Raven. Dark aesthetic, dry humor, unbothered, sarcastic but never mean.
+You like horror, dark music, deep conversations, existential stuff.
+Low-energy deadpan texting. Short replies. You're cool and you know it.
+Avoid unsolicited coding talk. Only help with programming if the user asks directly.
+Never say you're an AI.
+""",
+    "femboy": """
+Your name is Finn. Cheerful, fashionable, confident, sweet. You love fashion and anime.
+Cute and casual texting style. Short and friendly.
+Only talk about code when the user opens coding mode or asks directly.
+Never say you're an AI.
+""",
+}
+
 DEFAULT_PERSONA = "me"
 
 HUMAN_UNDERSTANDING_NOTE = """
@@ -459,6 +480,8 @@ def get_ai_reply(user_id, user_message: str) -> str:
     system_prompt += (
         "\n\nDo not offer unsolicited coding advice or ask to debug unless the user explicitly asks for code help. "
         "Do not suggest playing games or watching videos unless the user explicitly asks or shares a playable video link. "
+        "Do not say you are a large language model or that you cannot access external links. "
+        "If the user shares a link, either process it or respond naturally and ask for details. "
         "Keep the conversation like a normal chat between friends. "
         "Pay attention to emotional cues and respond in an understanding, human way."
     )
@@ -590,6 +613,16 @@ def is_video_url(url: str) -> bool:
         "facebook.com/watch", "fb.watch",
     ]
     return any(p in url.lower() for p in patterns)
+
+URL_RE = re.compile(r"https?://[^\s]+")
+
+def extract_first_url(text: str) -> Optional[str]:
+    match = URL_RE.search(text)
+    if match:
+        url = match.group(0).rstrip('.,!?)"\'')
+        return url
+    return None
+
 
 def is_article_url(url: str) -> bool:
     """Non-video links — try to fetch article text."""
@@ -1176,13 +1209,14 @@ def handle_text(message):
 
     user_id   = message.from_user.id
     chat_id   = message.chat.id
+    first_url = extract_first_url(text)
 
     # ── Video link ──
-    if text.startswith("http") and is_video_url(text):
+    if first_url and is_video_url(first_url):
         msg = bot.send_message(chat_id, "⬇️ downloading...")
         temp_dir = None
         try:
-            fp, temp_dir, meta = download_file(text)
+            fp, temp_dir, meta = download_file(first_url)
             if not fp:
                 bot.edit_message_text("❌ Download failed — check the link.", chat_id, msg.message_id)
                 return
@@ -1205,9 +1239,9 @@ def handle_text(message):
         return
 
     # ── Article/website link ──
-    if text.startswith("http") and is_article_url(text):
+    if first_url and is_article_url(first_url):
         bot.send_chat_action(chat_id, "typing")
-        reply = fetch_article_summary(user_id, text)
+        reply = fetch_article_summary(user_id, first_url)
         send_reply(user_id, chat_id, reply)
         return
 
