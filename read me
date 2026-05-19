@@ -1,0 +1,23 @@
+# Moses Bot
+
+Telegram AI companion bot ready for Railway deployment.
+
+## Deployment
+
+1. Push this folder to GitHub.
+2. In Railway, choose `New Project` → `Deploy from GitHub`.
+3. Select this repository.
+4. Railway should detect the `Procfile` and use `worker: python main.py`.
+
+## Environment Variables
+
+- `BOT_TOKEN`
+- `OPENAI_API_KEY` (optional for vision, TTS, and voice transcription)
+- `GROQ_API_KEY` (optional for AI and vision fallback)
+- `ELEVENLABS_KEY` (optional for premium TTS)
+
+## Notes
+
+- The bot uses polling, so deploy it as a worker.
+- Add your API keys using Railway environment variables.
+- Do not commit keys to GitHub.
