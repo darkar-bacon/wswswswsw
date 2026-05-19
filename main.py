@@ -428,6 +428,16 @@ GROQ_VISION_MODELS = [
     "llama-3.3-70b-versatile",
 ]
 
+def _is_groq_rate_limit_error(error: Exception) -> bool:
+    text = str(error).lower()
+    return (
+        "rate limit" in text
+        or "429" in text
+        or "tokens per day" in text
+        or "rate_limit_exceeded" in text
+        or "limit 100000" in text
+    )
+
 def _call_groq(messages: list, max_tokens=350) -> Optional[str]:
     for model in GROQ_MODELS:
         for attempt in range(3):
@@ -439,6 +449,9 @@ def _call_groq(messages: list, max_tokens=350) -> Optional[str]:
                 )
                 return resp.choices[0].message.content.strip()
             except Exception as e:
+                if _is_groq_rate_limit_error(e):
+                    print(f"[GROQ {model}] rate limit hit, falling back: {e}")
+                    break
                 print(f"[GROQ {model} attempt {attempt+1}] {e}")
                 time.sleep(1.5 * (attempt + 1))
     return None
