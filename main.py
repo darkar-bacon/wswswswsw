@@ -7,10 +7,6 @@ from io import BytesIO
 import speech_recognition as sr
 from pydub import AudioSegment
 import json
-import subprocess
-import sys
-from pathlib import Path
-import tempfile
 
 # Use environment variables - NO hardcoded keys
 TOKEN = os.getenv("token")
@@ -30,65 +26,23 @@ def get_user_conversation(user_id):
         user_conversations[user_id] = []
     return user_conversations[user_id]
 
-def download_video(url: str, output_dir: str, audio_only: bool = False, cookiefile: str = None):
-    """Download video/audio from YouTube, TikTok, Instagram, etc."""
-    output_path = os.path.join(output_dir, "%(title).120s.%(ext)s")
-    cmd = [
-        sys.executable,
-        "-m",
-        "yt_dlp",
-        "-o",
-        output_path,
-        "--no-playlist",
-        "--merge-output-format",
-        "mp4",
-        url,
-    ]
-    if audio_only:
-        cmd.extend(["-x", "--audio-format", "mp3"])
-    if cookiefile:
-        cmd.extend(["--cookies", cookiefile])
-    cmd.extend([
-        "--user-agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "--geo-bypass",
-        "--no-check-certificate",
-        "--retries",
-        "5",
-        "--fragment-retries",
-        "5",
-        "--socket-timeout",
-        "30",
-    ])
-    
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"Download failed: {result.stderr}")
-    
-    # Find the downloaded file
-    files = list(Path(output_dir).glob("*"))
-    if files:
-        return str(files[0])
-    return None
-
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    welcome_text = """Welcome to Moses Bot! 🤖
-
-I can help you with:
-• Text conversations (powered by Groq)
-• Image analysis
-• Voice messages
-• Video downloads (YouTube, TikTok, Instagram)
-
-Commands:
-/start - Show this message
-/clear - Clear conversation history
-/help - Get help
-/download <url> - Download video
-/downloadaudio <url> - Download audio only (MP3)
-
-Just send me a message, image, or voice note!"""
+    welcome_text = """
+    Welcome to Moses Bot! 🤖
+    
+    I can help you with:
+    • Text conversations (powered by Groq)
+    • Image analysis
+    • Voice messages
+    
+    Commands:
+    /start - Show this message
+    /clear - Clear conversation history
+    /help - Get help
+    
+    Just send me a message, image, or voice note!
+    """
     bot.reply_to(message, welcome_text)
 
 @bot.message_handler(commands=['clear'])
@@ -100,61 +54,17 @@ def clear_history(message):
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
-    help_text = """📚 Help Guide:
-
-Text: Send any message for AI conversation
-Image: Send an image for analysis
-Voice: Send a voice message for transcription + response
-
-Downloads:
-/download <url> - Download video from YouTube, TikTok, Instagram
-/downloadaudio <url> - Download audio only (MP3)
-
-/clear - Reset conversation
-/start - Show welcome message"""
+    help_text = """
+    📚 Help Guide:
+    
+    Text: Send any message for AI conversation
+    Image: Send an image for analysis
+    Voice: Send a voice message for transcription + response
+    
+    /clear - Reset conversation
+    /start - Show welcome message
+    """
     bot.reply_to(message, help_text)
-
-@bot.message_handler(commands=['download'])
-def handle_download(message):
-    try:
-        args = message.text.split(maxsplit=1)
-        if len(args) < 2:
-            bot.reply_to(message, "Usage: /download <url>")
-            return
-        
-        url = args[1]
-        bot.reply_to(message, "⏳ Downloading video... This may take a while.")
-        
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_path = download_video(url, temp_dir, audio_only=False)
-            if file_path and os.path.exists(file_path):
-                with open(file_path, 'rb') as video_file:
-                    bot.send_document(message.chat.id, video_file, caption="✅ Download complete!")
-            else:
-                bot.reply_to(message, "❌ Download failed or file not found")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Error: {str(e)}")
-
-@bot.message_handler(commands=['downloadaudio'])
-def handle_download_audio(message):
-    try:
-        args = message.text.split(maxsplit=1)
-        if len(args) < 2:
-            bot.reply_to(message, "Usage: /downloadaudio <url>")
-            return
-        
-        url = args[1]
-        bot.reply_to(message, "⏳ Downloading audio... This may take a while.")
-        
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_path = download_video(url, temp_dir, audio_only=True)
-            if file_path and os.path.exists(file_path):
-                with open(file_path, 'rb') as audio_file:
-                    bot.send_document(message.chat.id, audio_file, caption="✅ Audio download complete!")
-            else:
-                bot.reply_to(message, "❌ Download failed or file not found")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Error: {str(e)}")
 
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
