@@ -1348,6 +1348,10 @@ def run_bot():
     print(f"  Memory:  ✅ (files: {MEMORY_FILE}, {HISTORY_FILE})")
     print("=" * 55)
 
+    try:
+        bot.stop_polling()
+    except Exception:
+        pass
     bot.remove_webhook()
     print("[BOT] removed existing webhook before polling")
 
@@ -1356,16 +1360,23 @@ def run_bot():
             bot.infinity_polling(
                 timeout=60,
                 long_polling_timeout=60,
-                skip_pending=True,
+                skip_pending=False,
                 allowed_updates=["message"],
             )
         except Exception as e:
             if is_get_updates_conflict_error(e):
                 print("[CONFLICT] Telegram getUpdates conflict detected (409).")
                 print("[CONFLICT] Make sure only one bot instance is running or remove an existing webhook.")
-                traceback.print_exc()
-                time.sleep(30)
-                bot.remove_webhook()
+                print(f"[CONFLICT] {e}")
+                try:
+                    bot.stop_polling()
+                except Exception:
+                    pass
+                try:
+                    bot.remove_webhook()
+                except Exception:
+                    pass
+                time.sleep(60)
                 continue
 
             print(f"[CRASH] {e}")
