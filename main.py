@@ -1,13 +1,22 @@
-# ─────────────────────────────────────────────
-# RUN BOT (FULLY FIXED)
-# ─────────────────────────────────────────────
-
 import os
 import sys
 import time
 import json
 import signal
 import traceback
+import tempfile
+import shutil
+import subprocess
+import logging
+import re
+
+from pathlib import Path
+from datetime import datetime, timezone
+
+import requests
+import telebot
+from telebot import types
+import yt_dlp
 
 BOT_RUNNING = False
 
