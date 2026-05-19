@@ -78,7 +78,7 @@ def handle_text(message):
     
     try:
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="llama-3.1-70b-versatile",
             messages=conversation,
             max_tokens=1024,
         )
@@ -105,7 +105,7 @@ def handle_photo(message):
         conversation.append({"role": "user", "content": user_message})
         
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="llama-3.1-70b-versatile",
             messages=conversation,
             max_tokens=1024,
         )
@@ -140,7 +140,7 @@ def handle_voice(message):
         conversation.append({"role": "user", "content": text})
         
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="llama-3.1-70b-versatile",
             messages=conversation,
             max_tokens=1024,
         )
